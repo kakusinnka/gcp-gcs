@@ -3,6 +3,8 @@ package com.hzh.gcpgcs.controller;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.nio.file.Paths;
+import java.nio.ByteBuffer;
+import java.nio.channels.WritableByteChannel;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 
@@ -156,6 +158,33 @@ public class MainController {
                         + bucketName
                         + " to "
                         + destFilePath);
+    }
+
+    /*
+     * 更新 blob 对象 对象里的内容重写
+     */
+    @GetMapping(value = "/updatingData")
+    public void updatingData() throws IOException {
+        // The ID of your GCP project
+        String projectId = "my-project-29437-364300";
+        // The ID of your GCS bucket
+        String bucketName = "hzh-gcs-bucket002";
+        // The ID of your GCS object
+        String objectName = "hzh/hello.txt";
+
+        BlobId blobId = BlobId.of(bucketName, objectName);
+        Storage storage = StorageOptions.newBuilder().setProjectId(projectId).build().getService();
+        Blob blob = storage.get(blobId);
+        if (blob != null) {
+            // Blob.getContent -> 返回 blob 的内容。
+            byte[] prevContent = blob.getContent();
+            System.out.println(new String(prevContent, UTF_8));
+            // Blob.writer -> 返回用于写入此 blob 的 WriteChannel 对象。
+            WritableByteChannel channel = blob.writer();
+            // ByteBuffer.wrap -> 通过包装给定的字节数组创建新的字节缓冲区。
+            channel.write(ByteBuffer.wrap("Updated content2".getBytes(UTF_8)));
+            channel.close();
+        }
     }
 
     /**
