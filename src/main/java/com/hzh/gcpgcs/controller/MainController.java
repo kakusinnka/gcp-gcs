@@ -42,13 +42,10 @@ public class MainController {
     public void uploadObject() throws IOException {
         // The ID of your GCP project
         String projectId = "my-project-29437-364300";
-
         // The ID of your GCS bucket
         String bucketName = "hzh-gcs-bucket001";
-
         // The ID of your GCS object
         String objectName = "hzh/hzh1.txt";
-
         // The path to your file to upload
         String filePath = "file\\hzh1.txt";
 
@@ -61,6 +58,37 @@ public class MainController {
 
         System.out.println(
                 "File " + filePath + " uploaded to bucket " + bucketName + " as " + objectName);
+    }
+
+    /**
+     * 使用字节流做成文件到GCS
+     * 
+     * @throws IOException
+     */
+    @GetMapping(value = "/uploadObjectFromMemory")
+    public static void uploadObjectFromMemory() throws IOException {
+        // The ID of your GCP project
+        String projectId = "my-project-29437-364300";
+        // The ID of your GCS bucket
+        String bucketName = "hzh-gcs-bucket001";
+        // The ID of your GCS object
+        String objectName = "hzh/hzh2.txt";
+        // The string of contents you wish to upload
+        String contents = "Hello world!";
+
+        Storage storage = StorageOptions.newBuilder().setProjectId(projectId).build().getService();
+        BlobId blobId = BlobId.of(bucketName, objectName);
+        BlobInfo blobInfo = BlobInfo.newBuilder(blobId).build();
+        byte[] content = contents.getBytes(StandardCharsets.UTF_8);
+        storage.createFrom(blobInfo, new ByteArrayInputStream(content));
+
+        System.out.println(
+                "Object "
+                        + objectName
+                        + " uploaded to bucket "
+                        + bucketName
+                        + " with contents "
+                        + contents);
     }
 
     /*
@@ -134,13 +162,10 @@ public class MainController {
     public static void downloadObject() {
         // The ID of your GCP project
         String projectId = "my-project-29437-364300";
-
         // The ID of your GCS bucket
         String bucketName = "hzh-gcs-bucket002";
-
         // The ID of your GCS object
         String objectName = "hzh/hello.txt";
-
         // The path to which the file should be downloaded
         String destFilePath = "./file/file.txt";
 
@@ -188,37 +213,93 @@ public class MainController {
     }
 
     /**
-     * 使用字节流做成文件到GCS
+     * 列出桶 和 桶的内容
      * 
-     * @throws IOException
+     * @return
      */
-    @GetMapping(value = "/uploadObjectFromMemory")
-    public static void uploadObjectFromMemory() throws IOException {
+    @GetMapping(value = "/listBucket")
+    public void listBucket() {
+        Storage storage = StorageOptions.getDefaultInstance().getService();
+        // Storage.list -> 列出项目的存储桶。
+        for (Bucket bucket : storage.list().iterateAll()) {
+            System.out.println(bucket);
+
+            // Bucket.list -> 返回此存储桶中 Blob 的分页列表。
+            System.out.println("Blobs in the bucket:");
+            for (Blob blob : bucket.list().iterateAll()) {
+                System.out.println(blob);
+            }
+        }
+    }
+
+    /**
+     * 移动 GCS 对象
+     * 
+     * @return
+     */
+    @GetMapping(value = "/moveObject")
+    public void moveObject() {
+
         // The ID of your GCP project
         String projectId = "my-project-29437-364300";
-
         // The ID of your GCS bucket
-        String bucketName = "hzh-gcs-bucket001";
-
+        String sourceBucketName = "hzh-gcs-bucket001";
         // The ID of your GCS object
-        String objectName = "hzh/hzh2.txt";
+        String sourceObjectName = "hzh/hzh1.txt";
 
-        // The string of contents you wish to upload
-        String contents = "Hello world!";
+        // The ID of the bucket to move the object objectName to
+        String targetBucketName = "hzh-gcs-bucket002";
+        // The ID of your GCS object
+        String targetObjectName = "hzh/hzh2.txt";
 
         Storage storage = StorageOptions.newBuilder().setProjectId(projectId).build().getService();
-        BlobId blobId = BlobId.of(bucketName, objectName);
-        BlobInfo blobInfo = BlobInfo.newBuilder(blobId).build();
-        byte[] content = contents.getBytes(StandardCharsets.UTF_8);
-        storage.createFrom(blobInfo, new ByteArrayInputStream(content));
+        BlobId source = BlobId.of(sourceBucketName, sourceObjectName);
+        BlobId target = BlobId.of(targetBucketName, targetObjectName);
+
+        // 可选的: 设置生成匹配前提条件以避免潜在的竞争条件和数据损坏。 如果不满足前置条件，请求会返回 412 错误。
+        // 对于尚不存在的目标对象，设置 DoesNotExist 前置条件。
+        // Storage.BlobTargetOption.doesNotExist() -> 返回仅当目标 blob 不存在时才导致操作成功的选项。
+        Storage.BlobTargetOption precondition = Storage.BlobTargetOption.doesNotExist();
+        // 如果目标已存在于您的存储桶中，请改为设置生成匹配。前提：
+        // Storage.BlobTargetOption precondition =
+        // Storage.BlobTargetOption.generationMatch();
+
+        // 发送复制请求。此方法复制 blob 的数据和信息。此方法为提供的 CopyRequest 返回一个 CopyWriter 对象。
+        storage.copy(
+                Storage.CopyRequest.newBuilder().setSource(source).setTarget(target, precondition).build());
+        Blob copiedObject = storage.get(target);
+        // 现在我们已经复制到我们想要的位置删除原始 blob，完成“移动”操作
+        storage.get(source).delete();
 
         System.out.println(
-                "Object "
-                        + objectName
-                        + " uploaded to bucket "
-                        + bucketName
-                        + " with contents "
-                        + contents);
+                "Moved object "
+                        + sourceObjectName
+                        + " from bucket "
+                        + sourceBucketName
+                        + " to "
+                        + targetObjectName
+                        + " in bucket "
+                        + copiedObject.getBucket());
+
+    }
+
+    /**
+     * 从 一个 Project 的 GCS 上读取数据，使用字节流，做成文件到 另一个 Project 的 GCS。
+     */
+    @GetMapping(value = "/copyObjectToOtherProject")
+    public void copyObjectToOtherProject() {
+        String sourceBucketName = "hzh-gcs-bucket002";
+        String sourceBlobName = "hzh/hello.txt";
+        Storage sourceSorage = StorageOptions.getDefaultInstance().getService();
+
+        BlobId sourceBlobId = BlobId.of(sourceBucketName, sourceBlobName);
+        // Storage.readAllBytes -> 从 blob 中读取所有字节。
+        byte[] content = sourceSorage.readAllBytes(sourceBlobId);
+
+        Storage storage = StorageOptions.newBuilder().setProjectId("my-project-57445-364223").build().getService();
+        BlobId blobId = BlobId.of("hzh-gcs-bucket003", "hzh/hello003.txt");
+        BlobInfo blobInfo = BlobInfo.newBuilder(blobId).build();
+        storage.create(blobInfo, content);
     }
 
     /**
