@@ -3,6 +3,7 @@ package com.hzh.gcpgcs.controller;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.nio.file.Paths;
+import java.util.Objects;
 import java.nio.ByteBuffer;
 import java.nio.channels.WritableByteChannel;
 import java.nio.charset.StandardCharsets;
@@ -22,7 +23,6 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 
 import com.google.cloud.storage.Blob;
 import com.google.cloud.storage.Bucket;
-import com.google.cloud.storage.BucketInfo;
 
 @RestController
 public class MainController {
@@ -41,7 +41,7 @@ public class MainController {
     @GetMapping(value = "/UploadObject")
     public void uploadObject() throws IOException {
         // The ID of your GCP project
-        String projectId = "my-project-29437-364300";
+        String projectId = "red-airline-374000";
         // The ID of your GCS bucket
         String bucketName = "hzh-gcs-bucket001";
         // The ID of your GCS object
@@ -68,7 +68,7 @@ public class MainController {
     @GetMapping(value = "/uploadObjectFromMemory")
     public static void uploadObjectFromMemory() throws IOException {
         // The ID of your GCP project
-        String projectId = "my-project-29437-364300";
+        String projectId = "red-airline-374000";
         // The ID of your GCS bucket
         String bucketName = "hzh-gcs-bucket001";
         // The ID of your GCS object
@@ -113,7 +113,6 @@ public class MainController {
         // BucketInfo.of -> 为提供的 bucket 名称创建一个 BucketInfo 对象.
         // storage.create -> 创建一个新的 bucket.
         String bucketName = "hzh-gcs-bucket002";
-        Bucket bucket = storage.create(BucketInfo.of(bucketName));
 
         // 将 Blob 上传到新创建的存储桶
         // BlobId: GCS 对象标识符。
@@ -136,7 +135,7 @@ public class MainController {
         // 计算内容的 MD5 和 CRC32C 哈希值并用于验证传输的数据。
         // 接受一个可选的 userProject BlobGetOption 选项，该选项定义项目 ID 以分配运营成本。
         // 如果未明确设置，则从 blob 名称中检测内容类型。
-        Blob blob = storage.create(blobInfo, "a simple blob".getBytes(UTF_8));
+        storage.create(blobInfo, "a simple blob".getBytes(UTF_8));
     }
 
     /*
@@ -161,7 +160,7 @@ public class MainController {
     @GetMapping(value = "/downloadObject")
     public static void downloadObject() {
         // The ID of your GCP project
-        String projectId = "my-project-29437-364300";
+        String projectId = "red-airline-374000";
         // The ID of your GCS bucket
         String bucketName = "hzh-gcs-bucket002";
         // The ID of your GCS object
@@ -191,7 +190,7 @@ public class MainController {
     @GetMapping(value = "/updatingData")
     public void updatingData() throws IOException {
         // The ID of your GCP project
-        String projectId = "my-project-29437-364300";
+        String projectId = "red-airline-374000";
         // The ID of your GCS bucket
         String bucketName = "hzh-gcs-bucket002";
         // The ID of your GCS object
@@ -241,7 +240,7 @@ public class MainController {
     public void moveObject() {
 
         // The ID of your GCP project
-        String projectId = "my-project-29437-364300";
+        String projectId = "red-airline-374000";
         // The ID of your GCS bucket
         String sourceBucketName = "hzh-gcs-bucket001";
         // The ID of your GCS object
@@ -300,6 +299,30 @@ public class MainController {
         BlobId blobId = BlobId.of("hzh-gcs-bucket003", "hzh/hello003.txt");
         BlobInfo blobInfo = BlobInfo.newBuilder(blobId).build();
         storage.create(blobInfo, content);
+    }
+
+    /**
+     * 检查此 blob 是否存在。
+     */
+    @GetMapping(value = "/blobExists")
+    public String blobExists() {
+
+        // The ID of your GCP project
+        String projectId = "red-airline-374000";
+        // The ID of your GCS bucket
+        String bucketName = "hzh-gcs-bucket001";
+        // The ID of your GCS object
+        String objectName = "hzh/hzh2.txt";
+
+        BlobId blobId = BlobId.of(bucketName, objectName);
+        Storage storage = StorageOptions.newBuilder().setProjectId(projectId).build().getService();
+        Blob blob = storage.get(blobId);
+        if (Objects.nonNull(blob) ) {
+            return "the blob exists";
+        } else {
+            return "the blob was not found";
+        }
+
     }
 
     /**
